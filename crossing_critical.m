@@ -65,14 +65,16 @@ plot_result.TileSpacing = 'compact';
 
 function [y, dy] = myFTCS(phi, dphi, dx, dt, eta, field, epsilon)
 phixx = ((circshift(phi,1) + circshift(phi,-1)) - 2*phi) / dx^2;
-V = (phi.^3 - epsilon*phi)/2;
+% V = (phi.^3 - epsilon*phi)/2;
+V = (phi.^2 - epsilon)/2;
+V = V.*phi;
 y = phi + dt*dphi;
 dy = dphi + dt*(field - eta*dphi + phixx - V);
 end
 
 function [y, dy] = Heun_step(phi, dphi, dx, dt, eta, theta, epsilon)
 nx = length(phi);
-field = 2*eta*theta*randn(nx,1)/sqrt(dt);
+field = randn(nx,1)*sqrt(2*eta*theta/dt);
 [z, dz] = myFTCS(phi, dphi, dx, dt, eta, field, epsilon);
 [y, dy] = myFTCS((phi+z)/2, (dphi+dz)/2, dx, dt, eta, field, epsilon);
 end
