@@ -9,47 +9,42 @@ rng(myseed)
 
 T_max = 1000;
 dt = 1e-3;
-M = 10;
+M = 100;
 t = 0:dt*M:T_max;
 nt = length(t);
-L = 10;
-nx = L^2;
+L_all = 5:5:10;
+nL = length(L_all);
 eta = 0.05;
-theta = 20;
+theta = 1;
 epsilon0 = 5;
 omega = 1;
-t_re = 0:1/omega:T_max;
-nt_re = length(t_re);
 
-dphi = zeros(L);
-phi = epsilon0*ones(L);
-% phi = epsilon0*randn(L);
+order = zeros(nL,nt);
 
-order = zeros(1,nt);
-order(1) = sum(phi,"all")/nx;
-order_re = zeros(1,nt_re);
-order_re(1) = order(1);
+for n = 1:nL
+    L = L_all(n);
+    nx = L^2;
 
-t_it = 0;
-count = 2;
-count_re = 2;
-for i = 2:round(T_max/dt)+1
-    t_it = t_it + dt;
-%     epsilon = epsilon0 + delta*cos(omega*2*pi*t(i));
-%     [phi, dphi] = Heun_step(phi, dphi, t_it, dt, eta, theta, epsilon0, omega*2*pi);
-    [phi, dphi] = myFTCS(phi, dphi, t_it, dt, eta, 0, epsilon0, omega*2*pi);
-%     order(i) = sum(sqrt(phi(1,:,:,:).^2 + phi(2,:,:,:).^2),'all');
-    if mod(i+1,M) == 0
-        order(count) = sum(phi,"all")/nx;
-        count = count + 1;
+    dphi = zeros(L);
+    phi = epsilon0*ones(L);
+    % phi = epsilon0*randn(L);
+    order(n,1) = sum(phi,"all")/nx;
+
+    t_it = 0;
+    count = 2;
+    for i = 2:round(T_max/dt)+1
+        t_it = t_it + dt;
+        %     epsilon = epsilon0 + delta*cos(omega*2*pi*t(i));
+%         [phi, dphi] = Heun_step(phi, dphi, t_it, dt, eta, theta, epsilon0, omega*2*pi);
+        [phi, dphi] = myFTCS(phi, dphi, t_it, dt, eta, 0, epsilon0, omega*2*pi);
+        %     order(i) = sum(sqrt(phi(1,:,:,:).^2 + phi(2,:,:,:).^2),'all');
+        if mod(i+1,M) == 0
+            order(n,count) = sum(phi,"all")/nx;
+            count = count + 1;
+        end
     end
-    if mod(i+1,1/(omega*dt)) == 0
-        order_re(count_re) = -sum(phi,"all")*(-1)^count_re/nx;
-        count_re = count_re + 1;
-    end
+
 end
-% order = order;
-% order_re = order_re;
 
 cut = 1000;
 phi_f = abs(fft(order(:,floor(nt/2)+1:end),(nt+1)/2,2));
@@ -83,8 +78,7 @@ plot_result = tiledlayout(2,2);
 ax1 = nexttile;
 plot(ax1,t, order)
 ax2 = nexttile;
-% plot(ax2,t(floor(80*nt/100):end), order(floor(80*nt/100):end));
-plot(ax2,t_re, order_re)
+plot(ax2,t(floor(90*nt/100):end), order(:,floor(90*nt/100):end));
 ax3 = nexttile;
 plot(ax3,t,order);
 ax4 = nexttile;

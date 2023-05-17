@@ -12,44 +12,34 @@ dt = 1e-3;
 M = 10;
 t = 0:dt*M:T_max;
 nt = length(t);
-L = 10;
-nx = L^2;
+L = 8;
+nx = L^3;
 eta = 0.05;
-theta = 20;
+theta = 35;
 epsilon0 = 5;
 omega = 1;
-t_re = 0:1/omega:T_max;
-nt_re = length(t_re);
 
-dphi = zeros(L);
-phi = epsilon0*ones(L);
-% phi = epsilon0*randn(L);
+dphi = zeros(L,L,L);
+% phi(:,:,1:L) = epsilon0;
+phi = epsilon0*randn(L,L,L);
 
 order = zeros(1,nt);
-order(1) = sum(phi,"all")/nx;
-order_re = zeros(1,nt_re);
-order_re(1) = order(1);
+order(:,1) = sum(phi,"all");
 
 t_it = 0;
-count = 2;
-count_re = 2;
+count = 1;
 for i = 2:round(T_max/dt)+1
     t_it = t_it + dt;
 %     epsilon = epsilon0 + delta*cos(omega*2*pi*t(i));
-%     [phi, dphi] = Heun_step(phi, dphi, t_it, dt, eta, theta, epsilon0, omega*2*pi);
-    [phi, dphi] = myFTCS(phi, dphi, t_it, dt, eta, 0, epsilon0, omega*2*pi);
+    [phi, dphi] = Heun_step(phi, dphi, t_it, dt, eta, theta, epsilon0, omega*2*pi);
+%     [phi, dphi] = myFTCS(phi, dphi, t_it, dt, eta, 0, epsilon0, omega*2*pi);
 %     order(i) = sum(sqrt(phi(1,:,:,:).^2 + phi(2,:,:,:).^2),'all');
     if mod(i+1,M) == 0
-        order(count) = sum(phi,"all")/nx;
+        order(:,count) = sum(phi,"all");
         count = count + 1;
     end
-    if mod(i+1,1/(omega*dt)) == 0
-        order_re(count_re) = -sum(phi,"all")*(-1)^count_re/nx;
-        count_re = count_re + 1;
-    end
 end
-% order = order;
-% order_re = order_re;
+order = order/nx;
 
 cut = 1000;
 phi_f = abs(fft(order(:,floor(nt/2)+1:end),(nt+1)/2,2));
@@ -83,14 +73,14 @@ plot_result = tiledlayout(2,2);
 ax1 = nexttile;
 plot(ax1,t, order)
 ax2 = nexttile;
-% plot(ax2,t(floor(80*nt/100):end), order(floor(80*nt/100):end));
-plot(ax2,t_re, order_re)
+plot(ax2,t(floor(80*nt/100):end), order(floor(80*nt/100):end));
 ax3 = nexttile;
 plot(ax3,t,order);
 ax4 = nexttile;
 plot(ax4,w_main,phi_f_main);
 title(plot_result,titlename)
 plot_result.TileSpacing = 'compact';
+
 
 
 function [y, z] = myFTCS(phi, dphi, t, dt, eta, field, epsilon, omega)
@@ -104,19 +94,15 @@ end
 
 function [y1, y2] = Heun_step(phi, dphi, t, dt, eta, theta, epsilon, omega)
 L = length(phi);
-field = randn(L)*sqrt(2*eta*theta/dt);
+field = randn(L,L,L)*sqrt(2*eta*theta/dt);
 [z1, z2] = myFTCS(phi, dphi, t, dt, eta, field, epsilon, omega);
 [y1, y2] = myFTCS((phi+z1)/2, (dphi+z2)/2, t, dt, eta, field, epsilon, omega);
 end
 
 function [y, z] = f(x, dx, eta, field, epsilon)
 
-phi_l = circshift(x,1,1);
-phi_r = circshift(x,-1,1);
-phi_u = circshift(x,1,2);
-phi_d = circshift(x,-1,2);
-
-phixx = phi_l + phi_r + phi_u + phi_d - 4*x;
+phixx = ((circshift(x,1) + circshift(x,-1) + circshift(x,1,2) ...
+    + circshift(x,-1,2) + circshift(x,1,3) + circshift(x,-1,3)) - 6*x);
 V = (x.^2 - epsilon)/2;
 V = V.*x;
 y = dx;

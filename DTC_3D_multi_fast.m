@@ -4,7 +4,7 @@ clc;
 format long
 tic;
 
-myseed = 3;
+myseed = 5;
 rng(myseed)
 
 T_max = 1000;
@@ -12,45 +12,44 @@ dt = 1e-3;
 M = 10;
 t = 0:dt*M:T_max;
 nt = length(t);
-L = 10;
-nx = L^2;
+L = 12;
+nx = L^3;
+N_comp = 2;
 eta = 0.05;
-theta = 20;
+theta = 5;
 epsilon0 = 5;
-omega = 1;
-t_re = 0:1/omega:T_max;
-nt_re = length(t_re);
+omega = 0.75;
 
-dphi = zeros(L);
-phi = epsilon0*ones(L);
-% phi = epsilon0*randn(L);
+dphi = zeros(L,L,L,N_comp);
+% phi = epsilon0*rand(L,L,L,N_comp);
+% phi = epsilon0*(1+0.1*rand(L,L,L,N_comp));
+% phi = epsilon0*ones(L,L,L,N_comp);
+phi = epsilon0*randn(L,L,L,N_comp);
 
-order = zeros(1,nt);
-order(1) = sum(phi,"all")/nx;
-order_re = zeros(1,nt_re);
-order_re(1) = order(1);
+order_total = zeros(1,nt);
+order = zeros(N_comp,nt);
+% order(1) = sum(sqrt(phi(1,:,:,:).^2 + phi(2,:,:,:).^2),'all');
+order(:,1) = sum(phi,1:3);
+order_total(1) = sqrt(sum(order(:,1).^2));
 
 t_it = 0;
 count = 2;
-count_re = 2;
 for i = 2:round(T_max/dt)+1
     t_it = t_it + dt;
 %     epsilon = epsilon0 + delta*cos(omega*2*pi*t(i));
-%     [phi, dphi] = Heun_step(phi, dphi, t_it, dt, eta, theta, epsilon0, omega*2*pi);
+%     [phi, dphi] = Heun_step(phi, dphi, t_it, dt, eta, theta, epsilon0, omega*2*pi, N_comp);
     [phi, dphi] = myFTCS(phi, dphi, t_it, dt, eta, 0, epsilon0, omega*2*pi);
 %     order(i) = sum(sqrt(phi(1,:,:,:).^2 + phi(2,:,:,:).^2),'all');
     if mod(i+1,M) == 0
-        order(count) = sum(phi,"all")/nx;
+        order(:,count) = sum(phi,1:3);
+        order_total(count) = sqrt(sum(order(:,count).^2));
         count = count + 1;
     end
-    if mod(i+1,1/(omega*dt)) == 0
-        order_re(count_re) = -sum(phi,"all")*(-1)^count_re/nx;
-        count_re = count_re + 1;
-    end
 end
-% order = order;
-% order_re = order_re;
+order_total = order_total/nx;
+order = order/nx;
 
+% cut = round(nt/3);
 cut = 1000;
 phi_f = abs(fft(order(:,floor(nt/2)+1:end),(nt+1)/2,2));
 % phi_f = abs(fft(order(1,floor(nt/2)+1:end)));
@@ -81,16 +80,16 @@ titlename = strcat('dt = ',num2str(dt),', \eta = ',num2str(eta),', \theta = ',nu
 
 plot_result = tiledlayout(2,2);
 ax1 = nexttile;
-plot(ax1,t, order)
+plot(ax1,t, order_total)
 ax2 = nexttile;
-% plot(ax2,t(floor(80*nt/100):end), order(floor(80*nt/100):end));
-plot(ax2,t_re, order_re)
+plot(ax2,t(floor(80*nt/100):end), order_total(floor(80*nt/100):end));
 ax3 = nexttile;
 plot(ax3,t,order);
 ax4 = nexttile;
 plot(ax4,w_main,phi_f_main);
 title(plot_result,titlename)
 plot_result.TileSpacing = 'compact';
+
 
 
 function [y, z] = myFTCS(phi, dphi, t, dt, eta, field, epsilon, omega)
@@ -102,9 +101,9 @@ y = phi + dt*(c1+2*c2+2*c3+c4)/6;
 z = dphi + dt*(d1+2*d2+2*d3+d4)/6;
 end
 
-function [y1, y2] = Heun_step(phi, dphi, t, dt, eta, theta, epsilon, omega)
+function [y1, y2] = Heun_step(phi, dphi, t, dt, eta, theta, epsilon, omega, N_comp)
 L = length(phi);
-field = randn(L)*sqrt(2*eta*theta/dt);
+field = randn(L,L,L, N_comp)*sqrt(2*eta*theta/dt);
 [z1, z2] = myFTCS(phi, dphi, t, dt, eta, field, epsilon, omega);
 [y1, y2] = myFTCS((phi+z1)/2, (dphi+z2)/2, t, dt, eta, field, epsilon, omega);
 end
@@ -115,9 +114,12 @@ phi_l = circshift(x,1,1);
 phi_r = circshift(x,-1,1);
 phi_u = circshift(x,1,2);
 phi_d = circshift(x,-1,2);
+phi_a = circshift(x,1,3);
+phi_b = circshift(x,-1,3);
 
-phixx = phi_l + phi_r + phi_u + phi_d - 4*x;
-V = (x.^2 - epsilon)/2;
+phixx = phi_l + phi_r + phi_u + phi_d + phi_a + phi_b - 6*x;
+phi_norm = sum(x.^2,4);
+V = (phi_norm - epsilon)/2;
 V = V.*x;
 y = dx;
 z = field - eta*dx + phixx - V;
