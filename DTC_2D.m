@@ -22,8 +22,8 @@ t_re = 0:1/omega:T_max;
 nt_re = length(t_re);
 
 dphi = zeros(L);
-phi = epsilon0*ones(L);
-% phi = epsilon0*randn(L);
+% phi = epsilon0*ones(L);
+phi = epsilon0*randn(L);
 
 order = zeros(1,nt);
 order(1) = sum(phi,"all")/nx;
@@ -50,6 +50,8 @@ for i = 2:round(T_max/dt)+1
 end
 % order = order;
 % order_re = order_re;
+
+[order_max, order_min]=peakdet(order, epsilon0/10);
 
 cut = 1000;
 phi_f = abs(fft(order(:,floor(nt/2)+1:end),(nt+1)/2,2));
@@ -84,7 +86,8 @@ ax1 = nexttile;
 plot(ax1,t, order)
 ax2 = nexttile;
 % plot(ax2,t(floor(80*nt/100):end), order(floor(80*nt/100):end));
-plot(ax2,t_re, order_re)
+% plot(ax2,t_re, order_re)
+plot(ax2,t(order_max(:,1)), order_max(:,2))
 ax3 = nexttile;
 plot(ax3,t,order);
 ax4 = nexttile;

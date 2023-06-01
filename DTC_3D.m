@@ -12,10 +12,10 @@ dt = 1e-3;
 M = 10;
 t = 0:dt*M:T_max;
 nt = length(t);
-L = 20;
+L = 12;
 nx = L^3;
 eta = 0.05;
-theta = 35;
+theta = 10;
 epsilon0 = 5;
 omega = 0.5;
 
@@ -31,8 +31,8 @@ count = 1;
 for i = 2:round(T_max/dt)+1
     t_it = t_it + dt;
 %     epsilon = epsilon0 + delta*cos(omega*2*pi*t(i));
-%     [phi, dphi] = Heun_step(phi, dphi, t_it, dt, eta, theta, epsilon0, omega*2*pi);
-    [phi, dphi] = myFTCS(phi, dphi, t_it, dt, eta, 0, epsilon0, omega*2*pi);
+    [phi, dphi] = Heun_step(phi, dphi, t_it, dt, eta, theta, epsilon0, omega*2*pi);
+%     [phi, dphi] = myFTCS(phi, dphi, t_it, dt, eta, 0, epsilon0, omega*2*pi);
 %     order(i) = sum(sqrt(phi(1,:,:,:).^2 + phi(2,:,:,:).^2),'all');
     if mod(i+1,M) == 0
         order(:,count) = sum(phi,"all");

@@ -4,25 +4,28 @@ clc;
 format long
 tic;
 
-No = 26;
+rng(1e3)
 
-rng(No * 1e3)
-
-T_max = 3000;
+T_max = 100;
 dt = 1e-3;
 M = 100;
 t = 0:dt * M:T_max;
 nt = length(t);
-L_all = 25:5:50;
+L_all = 2:2:6;
 nL = length(L_all);
 eta = 0.05;
-theta = 10;
+theta = 15;
 epsilon0 = 5;
 omega = 1;
 N_comp = 2;
+T_dri = 2/omega;
+nt_dri = round(T_max/T_dri);
+T_dri_step =  round(2/(omega*dt*M));
+t_dri = 0:T_dri:T_max-dt;
 
 order = zeros(N_comp, nL, nt);
 order_total = zeros(nL, nt);
+order_re = zeros(N_comp, nL, nt_dri);
 
 for n = 1:nL
     L = L_all(n);
@@ -36,6 +39,7 @@ for n = 1:nL
 
     t_it = 0;
     count = 2;
+    count_re = 1;
 
     for i = 2:round(T_max / dt) + 1
         t_it = t_it + dt;
@@ -47,20 +51,25 @@ for n = 1:nL
             order(:, n, count) = sum(phi, 1:2) / nx;
             order_total(n, count) = sqrt(sum(order(:, n, count) .^ 2));
             count = count + 1;
+            if mod(count, T_dri_step) == 0
+                order_re(:, n, count_re) = max(order(:,n,T_dri_step*(count_re-1)+1:T_dri_step*count_re),[],3);
+                count_re = count_re + 1;
+            end
         end
-
     end
 
 end
 
-order_amp = sqrt(mean(order(:, :, floor(nt / 2) + 1:end) .^ 2, 3));
+order_amp = sqrt(mean(order_re(:, :, floor(nt_dri / 2) + 1:end) .^ 2, 3));
 [~, order_rank] = max(order_amp, [], 1);
 order_domi = zeros(nL, nt);
+order_domi_re = zeros(nL, nt_dri);
 for j = 1:nL
     order_domi(j, :) = order(order_rank(1, j), j, :);
+    order_domi_re(j, :) = order_re(order_rank(1, j), j, :);
 end
 
-cut = 1000;
+cut = 10;
 phi_f = abs(fft(order_domi(:,floor(nt/2)+1:end),(nt+1)/2,2));
 % phi_f = abs(fft(order(1,floor(nt/2)+1:end)));
 phi_f(:,1) = 0;
@@ -82,10 +91,6 @@ end
 
 fprintf('eta = %g, epsilon0 = %g, peak_f = %g, peak_per = %g .\n', eta, epsilon0, peak_f, peak_per);
 
-clear i n
-
-%save(strcat('main_dt', replace(num2str(dt), '.', '_'), '_theta', replace(num2str(theta), '.', '_'), '_No', num2str(No), '.mat'));
-
 toc;
 
 le = cell(1, nL);
@@ -94,48 +99,18 @@ for ii = 1:nL
     le{ii} = strcat('L = ', num2str(L_all(ii)));
 end
 
-%{
 figure;
-plot(t, order_total)
-xlabel('t')
-ylabel('order total')
-saveas(gcf, strcat('order_total_dt', replace(num2str(dt),'.','_'), '_theta', replace(num2str(theta),'.','_'), '_No', num2str(No), '.fig'));
-print(strcat('order_total_dt', replace(num2str(dt),'.','_'), '_theta', replace(num2str(theta),'.','_'), '_No', num2str(No)), '-dpng', '-r0');
-
-
-figure;
-plot(t(floor(80 * nt / 100):end), order_total(:, floor(80 * nt / 100):end))
+plot(t_dri, order_domi_re)
 xlabel('t')
 ylabel('order')
 legend(le);
-saveas(gcf, strcat('order_part_dt', replace(num2str(dt), '.', '_'), '_theta', replace(num2str(theta), '.', '_'), '_No', num2str(No), '.fig'));
-print(strcat('order_part_dt', replace(num2str(dt), '.', '_'), '_theta', replace(num2str(theta), '.', '_'), '_No', num2str(No)), '-dpng', '-r0');
-
-figure;
-plot(t, order_total)
-xlabel('t')
-ylabel('order')
-legend(le);
-saveas(gcf, strcat('order_dt', replace(num2str(dt), '.', '_'), '_theta', replace(num2str(theta), '.', '_'), '_No', num2str(No), '.fig'));
-print(strcat('order_dt', replace(num2str(dt), '.', '_'), '_theta', replace(num2str(theta), '.', '_'), '_No', num2str(No)), '-dpng', '-r0');
-
 
 figure;
 plot(t, order_domi)
 xlabel('t')
-ylabel('order_{dominant}')
+ylabel('order')
 legend(le);
-saveas(gcf, strcat('order_domi_dt', replace(num2str(dt), '.', '_'), '_theta', replace(num2str(theta), '.', '_'), '_No', num2str(No), '.fig'));
-print(strcat('order_domi_dt', replace(num2str(dt), '.', '_'), '_theta', replace(num2str(theta), '.', '_'), '_No', num2str(No)), '-dpng', '-r0');
 
-figure;
-plot(w_main, phi_f_main)
-xlabel('\omega')
-ylabel('order_f')
-legend(le);
-saveas(gcf, strcat('order_f_dt', replace(num2str(dt), '.', '_'), '_theta', replace(num2str(theta), '.', '_'), '_No', num2str(No), '.fig'));
-print(strcat('order_f_dt', replace(num2str(dt), '.', '_'), '_theta', replace(num2str(theta), '.', '_'), '_No', num2str(No)), '-dpng', '-r0');
-%}
 
 function [y, z] = myFTCS(phi, dphi, t, dt, eta, field, epsilon, omega)
     [c1, d1] = f(phi, dphi, eta, field, epsilon * (cos(omega * t) + 1));
